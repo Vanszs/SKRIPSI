@@ -1,0 +1,10 @@
+{
+  "network": "sepolia",
+  "chain_id": 1,
+  "n_blocks": 2000,
+  "start_block": 23665199,
+  "end_block": 23667198,
+  "start_timestamp": 1761524759,
+  "end_timestamp": 1761548939,
+  "created_at": "2025-10-27T14:11:26.971986"
+}

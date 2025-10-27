@@ -1,0 +1,10 @@
+{
+  "network": "mainnet",
+  "chain_id": 1,
+  "n_blocks": 5000,
+  "start_block": 23662367,
+  "end_block": 23667366,
+  "start_timestamp": 1761490511,
+  "end_timestamp": 1761550979,
+  "created_at": "2025-10-27T14:49:21.525895"
+}

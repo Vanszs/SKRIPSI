@@ -1,0 +1,108 @@
+# Experiment Configuration for Gas Fee Prediction Model
+experiment:
+  name: "hybrid-lstm-xgboost-gas-prediction"
+  version: "v1.0"
+  description: "LSTM + XGBoost hybrid model for Ethereum gas fee prediction post-EIP-1559"
+  
+network:
+  name: "sepolia"
+  chain_id: 11155111
+  block_time: 12  # seconds
+
+data:
+  n_blocks: 8000
+  validation_split: 0.15
+  test_split: 0.15
+  sequence_length: 20  # Back to 20 for less complexity
+  stride: 1  # sliding window stride
+  
+features:
+  # Raw features from blocks
+  raw:
+    - baseFeePerGas
+    - gasUsed
+    - gasLimit
+    - txCount
+    - timestamp
+  
+  # Engineered features
+  engineered:
+    - delta_baseFee  # change in baseFee
+    - utilization  # gasUsed / gasLimit
+    - ema_baseFee_short  # EMA with alpha=0.3
+    - ema_baseFee_long  # EMA with alpha=0.1
+    - ema_utilization_short
+    - ema_utilization_long
+    - hour_of_day
+    - day_of_week
+    - rolling_mean_baseFee_6
+    - rolling_std_baseFee_6
+    - rolling_mean_utilization_6
+  
+  # Label
+  target: baseFee_next
+
+model:
+  lstm:
+    hidden_size: 192  # Sweet spot: between 128 and 256
+    num_layers: 2  # Keep simple
+    dropout: 0.25  # Moderate regularization
+    bidirectional: false  
+    
+  xgboost:
+    n_estimators: 700  # Slightly more trees
+    max_depth: 6  # Keep shallow
+    learning_rate: 0.045  # Fine-tuned LR
+    subsample: 0.85  # Slightly more data per tree
+    colsample_bytree: 0.85  # Slightly more features per tree
+    min_child_weight: 2  # Less restrictive
+    gamma: 0.05  # Less regularization
+    reg_alpha: 0.03  # Fine-tuned L1
+    reg_lambda: 1.2  # Fine-tuned L2
+    early_stopping_rounds: 70  # More patience
+    
+training:
+  batch_size: 48  # Sweet spot between 32 and 64
+  epochs: 120  # More epochs
+  learning_rate: 0.0008  # Fine-tuned LR
+  optimizer: "adam"
+  weight_decay: 0.00015  # Moderate weight decay
+  scheduler:
+    type: "reduce_on_plateau"
+    patience: 12
+    factor: 0.5
+  
+  # Early stopping
+  early_stopping:
+    patience: 22  # More patience
+    min_delta: 0.00008  # Moderate threshold
+    
+evaluation:
+  metrics:
+    - mae  # Mean Absolute Error
+    - mape  # Mean Absolute Percentage Error
+    - rmse  # Root Mean Squared Error
+    - r2  # R-squared
+    - under_estimation_rate
+    - hit_at_epsilon  # Hit@ε (ε=5%)
+    
+  epsilon: 0.05  # 5% tolerance for Hit@ε
+
+inference:
+  # Fee recommendation policy
+  policy:
+    priority_fee_percentile: 0.5  # median priority fee
+    buffer_multiplier: 1.1  # 10% buffer on predicted baseFee
+    max_fee_multiplier: 1.5  # maxFee = 1.5 * (predicted_base + priority)
+    confidence_threshold: 0.85
+    
+  # Real-time settings
+  update_interval: 12  # seconds (1 block)
+  lookback_blocks: 100  # for calculating priority fee stats
+
+backtest:
+  start_block: null  # null = auto from test set
+  end_block: null
+  baseline: "eip1559_default"  # compare against default EIP-1559
+  simulate_tx: true
+  gas_limit: 21000  # standard ETH transfer
