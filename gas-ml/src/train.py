@@ -76,12 +76,13 @@ class TrainingPipeline:
         
         return df
     
-    def prepare_features(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray, list]:
+    def prepare_features(self, df: pd.DataFrame, selected_features: list = None) -> Tuple[np.ndarray, np.ndarray, list]:
         """
         Prepare features untuk training.
         
         Args:
             df: Feature DataFrame
+            selected_features: Optional list of features to use (feature selection)
             
         Returns:
             Tuple of (X, y, feature_names)
@@ -90,7 +91,17 @@ class TrainingPipeline:
         
         # Select feature columns (exclude metadata dan target)
         exclude_cols = ['number', 'timestamp', 'datetime', 'baseFee_next']
-        self.feature_columns = [col for col in df.columns if col not in exclude_cols]
+        
+        if selected_features:
+            # Use selected features only
+            self.feature_columns = [col for col in selected_features if col in df.columns]
+            missing = set(selected_features) - set(df.columns)
+            if missing:
+                logger.warning(f"Missing selected features: {missing}")
+            logger.info(f"Using {len(self.feature_columns)} selected features")
+        else:
+            # Use all features
+            self.feature_columns = [col for col in df.columns if col not in exclude_cols]
         
         X = df[self.feature_columns].values
         y = df[self.target_column].values
@@ -328,20 +339,29 @@ class TrainingPipeline:
             json.dump(info, f, indent=2)
         logger.info(f"✓ Training info saved: {info_path}")
     
-    def run(self, data_path: str, output_dir: str = 'models'):
+    def run(self, data_path: str, output_dir: str = 'models', selected_features_path: str = None):
         """
         Run complete training pipeline.
         
         Args:
             data_path: Path to features file
             output_dir: Output directory untuk models
+            selected_features_path: Optional path to selected features file
         """
         try:
             # Load data
             df = self.load_data(data_path)
             
+            # Load selected features if provided
+            selected_features = None
+            if selected_features_path:
+                logger.info(f"Loading selected features from {selected_features_path}")
+                with open(selected_features_path, 'r') as f:
+                    selected_features = [line.strip() for line in f if line.strip()]
+                logger.info(f"✓ Loaded {len(selected_features)} selected features")
+            
             # Prepare features
-            X, y, feature_names = self.prepare_features(df)
+            X, y, feature_names = self.prepare_features(df, selected_features)
             
             # Split data
             X_train, X_val, X_test, y_train, y_val, y_test = self.split_data(X, y)
@@ -397,6 +417,13 @@ def main():
     )
     
     parser.add_argument(
+        '--selected-features',
+        type=str,
+        default=None,
+        help='Path to selected features file (optional, filters features before training)'
+    )
+    
+    parser.add_argument(
         '--verbose',
         '-v',
         action='store_true',
@@ -418,7 +445,7 @@ def main():
         
         # Run pipeline
         pipeline = TrainingPipeline(args.cfg)
-        pipeline.run(args.input_file, args.out_dir)
+        pipeline.run(args.input_file, args.out_dir, args.selected_features)
         
         sys.exit(0)
         
