@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-10-27T15:13:00.307253",
+  "timestamp": "2025-11-10T17:01:47.943888",
   "config": {
     "experiment": {
       "name": "hybrid-lstm-xgboost-gas-prediction",
@@ -90,10 +90,10 @@
     },
     "inference": {
       "policy": {
-        "priority_fee_percentile": 0.5,
-        "buffer_multiplier": 1.1,
-        "max_fee_multiplier": 1.5,
-        "confidence_threshold": 0.85
+        "priority_fee_percentile": 0.6,
+        "buffer_multiplier": 1.25,
+        "max_fee_multiplier": 1.8,
+        "confidence_threshold": 0.8
       },
       "update_interval": 12,
       "lookback_blocks": 100
@@ -108,34 +108,29 @@
   },
   "feature_columns": [
     "baseFeePerGas",
-    "baseFee_momentum_10",
-    "baseFee_trend_3",
-    "baseFee_trend_6",
-    "baseFee_zscore",
+    "gasUsed",
+    "gasLimit",
+    "txCount",
+    "difficulty",
+    "totalDifficulty",
+    "utilization",
+    "hour_of_day",
+    "day_of_week",
     "delta_baseFee",
     "delta_gasUsed",
-    "ema_crossover",
-    "ema_delta_baseFee",
-    "ema_utilization_long",
-    "ema_utilization_short",
-    "high_util_flag",
-    "hour_cos",
-    "rolling_mean_utilization_6",
-    "rolling_std_baseFee_6",
-    "rolling_std_utilization_6",
-    "txCount",
-    "util_x_baseFee",
-    "utilization_momentum_5"
+    "baseFee_ema_5",
+    "baseFee_ema_10",
+    "utilization_ema_5"
   ],
   "metrics": {
-    "mae": 2050844.0355677155,
-    "mae_gwei": 0.0020508440355677155,
-    "rmse": 3462574.9385036263,
-    "rmse_gwei": 0.0034625749385036263,
-    "mape": 2.188669478880257,
-    "r2": 0.9700846035548555,
-    "under_estimation_rate": 16.00547195622435,
-    "hit_at_epsilon": 85.3625170998632,
+    "mae": 1948038.3967168264,
+    "mae_gwei": 0.0019480383967168263,
+    "rmse": 3334660.3735051095,
+    "rmse_gwei": 0.0033346603735051094,
+    "mape": 2.0344023218514393,
+    "r2": 0.9722540488481983,
+    "under_estimation_rate": 10.39671682626539,
+    "hit_at_epsilon": 88.64569083447333,
     "epsilon": 5.0
   }
 }

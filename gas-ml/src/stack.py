@@ -127,6 +127,9 @@ class LSTMFeatureExtractor(nn.Module):
         
         # Dropout
         self.dropout = nn.Dropout(dropout)
+        
+        # Prediction head for supervised pre-training
+        self.prediction_head = nn.Linear(self.output_size, 1)
     
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -224,6 +227,9 @@ class HybridGasFeePredictor:
         # Feature metadata
         self.feature_names: Optional[list] = None
         self.n_input_features: Optional[int] = None
+        
+        # Target scaler for denormalization
+        self.target_scaler: Optional[Any] = None
     
     def _train_lstm(
         self,
@@ -251,12 +257,30 @@ class HybridGasFeePredictor:
         # Initialize model
         model = LSTMFeatureExtractor(**self.lstm_config).to(device)
         
-        # Loss and optimizer
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        # Custom loss function that penalizes under-estimation more heavily
+        def asymmetric_mse_loss(predictions, targets, under_penalty=2.0):
+            """
+            Asymmetric MSE loss that penalizes under-estimation more.
+            
+            Args:
+                predictions: Predicted values
+                targets: Target values
+                under_penalty: Penalty multiplier for under-estimation (default: 2.0)
+            """
+            errors = predictions - targets
+            # Apply higher weight to under-estimations (predictions < targets)
+            weights = torch.where(errors < 0, under_penalty, 1.0)
+            squared_errors = (errors ** 2) * weights
+            return squared_errors.mean()
+        
+        criterion = asymmetric_mse_loss
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer, mode='min', patience=10, factor=0.5
         )
+        
+        # Gradient clipping to prevent exploding gradients
+        max_grad_norm = 1.0
         
         # Training loop
         best_val_loss = float('inf')
@@ -276,13 +300,18 @@ class HybridGasFeePredictor:
                 optimizer.zero_grad()
                 features = model(sequences)
                 
-                # Simple prediction head untuk pre-training
-                prediction = features.mean(dim=1)  # Placeholder
+                # Use proper prediction head for supervised pre-training
+                prediction = model.prediction_head(features).squeeze()
                 
-                loss = criterion(prediction, labels)
+                # Use asymmetric loss with under-estimation penalty
+                loss = criterion(prediction, labels, under_penalty=2.5)
                 
                 # Backward
                 loss.backward()
+                
+                # Gradient clipping
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm)
+                
                 optimizer.step()
                 
                 train_loss += loss.item()
@@ -299,9 +328,10 @@ class HybridGasFeePredictor:
                     labels = labels.to(device)
                     
                     features = model(sequences)
-                    prediction = features.mean(dim=1)
+                    prediction = model.prediction_head(features).squeeze()
                     
-                    loss = criterion(prediction, labels)
+                    # Use asymmetric loss for validation too
+                    loss = criterion(prediction, labels, under_penalty=2.5)
                     val_loss += loss.item()
             
             val_loss /= len(val_loader)
@@ -367,7 +397,8 @@ class HybridGasFeePredictor:
         train_dataset = BlockSequenceDataset(X_train, y_train, self.sequence_length)
         val_dataset = BlockSequenceDataset(X_val, y_val, self.sequence_length)
         
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        # CRITICAL: shuffle=False to preserve temporal order and avoid data leakage
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=False)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
         
         # Step 2: Train LSTM
@@ -397,10 +428,28 @@ class HybridGasFeePredictor:
         ])
         y_val_xgb = y_val[self.sequence_length - 1:]
         
-        # Step 5: Train XGBoost
-        logger.info("\nTraining XGBoost meta-learner...")
+        # Step 5: Train XGBoost with asymmetric loss
+        logger.info("\nTraining XGBoost meta-learner with under-estimation penalty...")
         
-        self.xgb_model = xgb.XGBRegressor(**self.xgb_config)
+        # Custom objective that penalizes under-estimation
+        def asymmetric_mse_obj(y_true, y_pred):
+            """Custom XGBoost objective that penalizes under-estimation."""
+            residual = y_pred - y_true
+            # Higher gradient for under-predictions
+            grad = np.where(residual < 0, 2.5 * residual, residual)
+            # Higher hessian for under-predictions for second-order optimization
+            hess = np.where(residual < 0, 2.5 * np.ones_like(residual), np.ones_like(residual))
+            return grad, hess
+        
+        # Create XGBoost model with custom objective
+        xgb_config_custom = self.xgb_config.copy()
+        # Remove objective if specified (we'll use custom)
+        xgb_config_custom.pop('objective', None)
+        
+        self.xgb_model = xgb.XGBRegressor(
+            **xgb_config_custom,
+            objective=asymmetric_mse_obj
+        )
         
         self.xgb_model.fit(
             X_train_xgb, y_train_xgb,
@@ -413,16 +462,17 @@ class HybridGasFeePredictor:
         logger.info("Hybrid Model Training Complete!")
         logger.info("="*60 + "\n")
     
-    def predict(self, X: np.ndarray, device: str = 'cpu') -> np.ndarray:
+    def predict(self, X: np.ndarray, device: str = 'cpu', denormalize: bool = True) -> np.ndarray:
         """
         Make predictions.
         
         Args:
             X: Input features (n_samples, n_features)
             device: Device for LSTM inference
+            denormalize: Whether to denormalize predictions back to original scale
             
         Returns:
-            Predictions array
+            Predictions array (denormalized if target_scaler is available)
         """
         # Create dataset and loader
         # Use zeros for labels (not used in inference)
@@ -439,8 +489,12 @@ class HybridGasFeePredictor:
             lstm_features
         ])
         
-        # Predict with XGBoost
+        # Predict with XGBoost (normalized predictions)
         predictions = self.xgb_model.predict(X_xgb)
+        
+        # Denormalize predictions back to original scale (Wei)
+        if denormalize and self.target_scaler is not None:
+            predictions = self.target_scaler.inverse_transform(predictions.reshape(-1, 1)).flatten()
         
         return predictions
     
@@ -464,18 +518,26 @@ class HybridGasFeePredictor:
         self.xgb_model.save_model(xgb_path)
         logger.info(f"✓ XGBoost saved: {xgb_path}")
         
-        # Save metadata
+        # Save metadata (including target_scaler if available)
         metadata = {
             'lstm_config': self.lstm_config,
             'xgb_config': self.xgb_config,
             'sequence_length': self.sequence_length,
             'feature_names': self.feature_names,
             'n_input_features': self.n_input_features,
+            'has_target_scaler': self.target_scaler is not None,
         }
         
         metadata_path = output_dir / 'hybrid_metadata.pkl'
         with open(metadata_path, 'wb') as f:
             pickle.dump(metadata, f)
+        
+        # Save target scaler separately if available
+        if self.target_scaler is not None:
+            target_scaler_path = output_dir / 'target_scaler.pkl'
+            with open(target_scaler_path, 'wb') as f:
+                pickle.dump(self.target_scaler, f)
+            logger.info(f"✓ Target scaler saved: {target_scaler_path}")
         
         logger.info(f"✓ Metadata saved: {metadata_path}")
         logger.info(f"\n✓ Complete hybrid model saved to: {output_dir}")
@@ -491,12 +553,29 @@ class HybridGasFeePredictor:
             
         Returns:
             Loaded HybridGasFeePredictor instance
+            
+        Raises:
+            FileNotFoundError: If required model files not found
+            ValueError: If model metadata is invalid
         """
         model_dir = Path(model_dir)
         
+        # Validate required files exist
+        required_files = ['lstm.pt', 'xgb.bin', 'hybrid_metadata.pkl']
+        missing_files = [f for f in required_files if not (model_dir / f).exists()]
+        
+        if missing_files:
+            raise FileNotFoundError(
+                f"Missing required model files in {model_dir}: {missing_files}\n"
+                f"Please train the model first using: python -m src.train"
+            )
+        
         # Load metadata
-        with open(model_dir / 'hybrid_metadata.pkl', 'rb') as f:
-            metadata = pickle.load(f)
+        try:
+            with open(model_dir / 'hybrid_metadata.pkl', 'rb') as f:
+                metadata = pickle.load(f)
+        except Exception as e:
+            raise ValueError(f"Failed to load model metadata: {e}")
         
         # Create instance
         predictor = cls(
@@ -505,21 +584,44 @@ class HybridGasFeePredictor:
             sequence_length=metadata['sequence_length']
         )
         
+        # Validate metadata
+        required_keys = ['lstm_config', 'xgb_config', 'sequence_length', 'feature_names', 'n_input_features']
+        missing_keys = [k for k in required_keys if k not in metadata]
+        if missing_keys:
+            raise ValueError(f"Invalid metadata: missing keys {missing_keys}")
+        
         predictor.feature_names = metadata['feature_names']
         predictor.n_input_features = metadata['n_input_features']
         
+        # Load target scaler if available
+        if metadata.get('has_target_scaler', False):
+            target_scaler_path = model_dir / 'target_scaler.pkl'
+            if target_scaler_path.exists():
+                with open(target_scaler_path, 'rb') as f:
+                    predictor.target_scaler = pickle.load(f)
+                logger.info("✓ Target scaler loaded")
+        
         # Load LSTM
-        predictor.lstm_model = LSTMFeatureExtractor(**metadata['lstm_config'])
-        predictor.lstm_model.load_state_dict(
-            torch.load(model_dir / 'lstm.pt', map_location=device)
-        )
-        predictor.lstm_model.to(device)
-        predictor.lstm_model.eval()
+        try:
+            predictor.lstm_model = LSTMFeatureExtractor(**metadata['lstm_config'])
+            predictor.lstm_model.load_state_dict(
+                torch.load(model_dir / 'lstm.pt', map_location=device, weights_only=True)
+            )
+            predictor.lstm_model.to(device)
+            predictor.lstm_model.eval()
+        except Exception as e:
+            raise RuntimeError(f"Failed to load LSTM model: {e}")
         
         # Load XGBoost
-        predictor.xgb_model = xgb.XGBRegressor()
-        predictor.xgb_model.load_model(model_dir / 'xgb.bin')
+        try:
+            predictor.xgb_model = xgb.XGBRegressor()
+            predictor.xgb_model.load_model(model_dir / 'xgb.bin')
+        except Exception as e:
+            raise RuntimeError(f"Failed to load XGBoost model: {e}")
         
-        logger.info(f"✓ Hybrid model loaded from: {model_dir}")
+        logger.info(f"✓ Hybrid model loaded successfully from: {model_dir}")
+        logger.info(f"  - LSTM: {predictor.lstm_config['hidden_size']}x{predictor.lstm_config['num_layers']}")
+        logger.info(f"  - Features: {predictor.n_input_features}")
+        logger.info(f"  - Sequence length: {predictor.sequence_length}")
         
         return predictor

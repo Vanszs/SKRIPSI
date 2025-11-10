@@ -58,6 +58,11 @@ reports/*.csv
 # Logs
 *.log
 logs/
+outputs/logs/
+
+# Outputs
+outputs/predictions/
+outputs/archived_models/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -71,3 +76,9 @@ Thumbs.db
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Temporary files
+tmp_*.py
+check_*.py
+validate_*.py
+training.log

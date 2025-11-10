@@ -89,12 +89,12 @@ evaluation:
   epsilon: 0.05  # 5% tolerance for Hit@ε
 
 inference:
-  # Fee recommendation policy
+  # Fee recommendation policy (tuned to reduce under-estimation)
   policy:
-    priority_fee_percentile: 0.5  # median priority fee
-    buffer_multiplier: 1.1  # 10% buffer on predicted baseFee
-    max_fee_multiplier: 1.5  # maxFee = 1.5 * (predicted_base + priority)
-    confidence_threshold: 0.85
+    priority_fee_percentile: 0.6  # 60th percentile (more conservative)
+    buffer_multiplier: 1.25  # 25% buffer on predicted baseFee (was 10%)
+    max_fee_multiplier: 1.8  # maxFee = 1.8 * (predicted_base + priority)
+    confidence_threshold: 0.80  # Slightly lower threshold for more buffer
     
   # Real-time settings
   update_interval: 12  # seconds (1 block)

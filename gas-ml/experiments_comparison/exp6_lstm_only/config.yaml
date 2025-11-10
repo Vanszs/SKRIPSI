@@ -1,0 +1,45 @@
+# Experiment Configuration: LSTM Standalone
+experiment:
+  name: "lstm-only-gas-prediction"
+  version: "exp6"
+  description: "Standalone LSTM for Ethereum gas fee prediction - temporal baseline"
+  
+network:
+  name: "sepolia"
+  chain_id: 11155111
+  block_time: 12  # seconds
+
+data:
+  validation_split: 0.15
+  test_split: 0.15
+  sequence_length: 20  # SAME as hybrid
+  
+model:
+  lstm:
+    hidden_size: 192  # SAME as hybrid
+    num_layers: 2
+    dropout: 0.25
+    bidirectional: false
+    
+training:
+  batch_size: 48  # SAME as hybrid
+  epochs: 120
+  learning_rate: 0.0008  # SAME as hybrid
+  optimizer: "adam"
+  weight_decay: 0.00015
+  under_penalty: 2.5  # Asymmetric loss penalty
+  
+  # Early stopping
+  early_stopping:
+    patience: 22  # SAME as hybrid
+    min_delta: 0.00008
+    
+evaluation:
+  metrics:
+    - mae
+    - mape
+    - rmse
+    - r2
+    - under_estimation_rate
+    - hit_at_epsilon
+  epsilon: 0.05  # 5% tolerance

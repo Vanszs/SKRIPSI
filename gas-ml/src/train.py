@@ -156,16 +156,20 @@ class TrainingPipeline:
         self,
         X_train: np.ndarray,
         X_val: np.ndarray,
-        X_test: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        X_test: np.ndarray,
+        y_train: np.ndarray = None,
+        y_val: np.ndarray = None,
+        y_test: np.ndarray = None
+    ) -> Tuple:
         """
-        Normalize features menggunakan StandardScaler.
+        Normalize features and targets menggunakan StandardScaler.
         
         Args:
             X_train, X_val, X_test: Feature arrays
+            y_train, y_val, y_test: Target arrays (optional)
             
         Returns:
-            Normalized arrays
+            Normalized arrays (X_train, X_val, X_test) or (X_train, X_val, X_test, y_train, y_val, y_test)
         """
         logger.info("Normalizing features...")
         
@@ -174,8 +178,23 @@ class TrainingPipeline:
         X_val_norm = self.scaler.transform(X_val)
         X_test_norm = self.scaler.transform(X_test)
         
-        logger.info("✓ Features normalized")
+        # Normalize targets for LSTM training (important!)
+        if y_train is not None:
+            logger.info("Normalizing targets (baseFee values)...")
+            from sklearn.preprocessing import StandardScaler
+            self.target_scaler = StandardScaler()
+            
+            # Reshape for scaler (needs 2D input)
+            y_train_norm = self.target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
+            y_val_norm = self.target_scaler.transform(y_val.reshape(-1, 1)).flatten()
+            y_test_norm = self.target_scaler.transform(y_test.reshape(-1, 1)).flatten()
+            
+            logger.info(f"✓ Targets normalized (mean={self.target_scaler.mean_[0]/1e9:.2f} Gwei, std={np.sqrt(self.target_scaler.var_[0])/1e9:.2f} Gwei)")
+            logger.info("✓ Features normalized")
+            
+            return X_train_norm, X_val_norm, X_test_norm, y_train_norm, y_val_norm, y_test_norm
         
+        logger.info("✓ Features normalized")
         return X_train_norm, X_val_norm, X_test_norm
     
     def train_model(
@@ -366,11 +385,16 @@ class TrainingPipeline:
             # Split data
             X_train, X_val, X_test, y_train, y_val, y_test = self.split_data(X, y)
             
-            # Normalize
-            X_train, X_val, X_test = self.normalize_features(X_train, X_val, X_test)
+            # Normalize features AND targets
+            X_train, X_val, X_test, y_train_norm, y_val_norm, y_test_norm = self.normalize_features(
+                X_train, X_val, X_test, y_train, y_val, y_test
+            )
             
-            # Train model
-            model = self.train_model(X_train, y_train, X_val, y_val, feature_names)
+            # Train model with normalized targets
+            model = self.train_model(X_train, y_train_norm, X_val, y_val_norm, feature_names)
+            
+            # Store original (unnormalized) targets for evaluation
+            model.target_scaler = self.target_scaler
             
             # Evaluate
             metrics = self.evaluate_model(model, X_test, y_test)
