@@ -27,7 +27,7 @@ import torch
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from stack import HybridGasFeePredictor
+
 
 # Setup logging
 logging.basicConfig(
@@ -152,6 +152,7 @@ class TrainingPipeline:
         
         return X_train, X_val, X_test, y_train, y_val, y_test
     
+    
     def normalize_features(
         self,
         X_train: np.ndarray,
@@ -159,7 +160,8 @@ class TrainingPipeline:
         X_test: np.ndarray,
         y_train: np.ndarray = None,
         y_val: np.ndarray = None,
-        y_test: np.ndarray = None
+        y_test: np.ndarray = None,
+        normalize_targets: bool = True
     ) -> Tuple:
         """
         Normalize features and targets menggunakan StandardScaler.
@@ -167,6 +169,7 @@ class TrainingPipeline:
         Args:
             X_train, X_val, X_test: Feature arrays
             y_train, y_val, y_test: Target arrays (optional)
+            normalize_targets: Whether to normalize targets (default: True, usually for LSTM)
             
         Returns:
             Normalized arrays (X_train, X_val, X_test) or (X_train, X_val, X_test, y_train, y_val, y_test)
@@ -178,20 +181,25 @@ class TrainingPipeline:
         X_val_norm = self.scaler.transform(X_val)
         X_test_norm = self.scaler.transform(X_test)
         
-        # Normalize targets for LSTM training (important!)
+        # Normalize targets 
         if y_train is not None:
-            logger.info("Normalizing targets (baseFee values)...")
-            from sklearn.preprocessing import StandardScaler
-            self.target_scaler = StandardScaler()
-            
-            # Reshape for scaler (needs 2D input)
-            y_train_norm = self.target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
-            y_val_norm = self.target_scaler.transform(y_val.reshape(-1, 1)).flatten()
-            y_test_norm = self.target_scaler.transform(y_test.reshape(-1, 1)).flatten()
-            
-            logger.info(f"✓ Targets normalized (mean={self.target_scaler.mean_[0]/1e9:.2f} Gwei, std={np.sqrt(self.target_scaler.var_[0])/1e9:.2f} Gwei)")
+            if normalize_targets:
+                logger.info("Normalizing targets (baseFee values)...")
+                from sklearn.preprocessing import StandardScaler
+                self.target_scaler = StandardScaler()
+                
+                # Reshape for scaler (needs 2D input)
+                y_train_norm = self.target_scaler.fit_transform(y_train.reshape(-1, 1)).flatten()
+                y_val_norm = self.target_scaler.transform(y_val.reshape(-1, 1)).flatten()
+                y_test_norm = self.target_scaler.transform(y_test.reshape(-1, 1)).flatten()
+                
+                logger.info(f"✓ Targets normalized (mean={self.target_scaler.mean_[0]/1e9:.2f} Gwei, std={np.sqrt(self.target_scaler.var_[0])/1e9:.2f} Gwei)")
+            else:
+                logger.info("Skipping target normalization (using raw values)")
+                y_train_norm, y_val_norm, y_test_norm = y_train, y_val, y_test
+                self.target_scaler = None
+
             logger.info("✓ Features normalized")
-            
             return X_train_norm, X_val_norm, X_test_norm, y_train_norm, y_val_norm, y_test_norm
         
         logger.info("✓ Features normalized")
@@ -203,54 +211,48 @@ class TrainingPipeline:
         y_train: np.ndarray,
         X_val: np.ndarray,
         y_val: np.ndarray,
-        feature_names: list
-    ) -> HybridGasFeePredictor:
+        feature_names: list,
+        model_type: str = 'hybrid'
+    ) -> Any:
         """
-        Train hybrid model.
+        Train prediction model (Hybrid or Standalone XGBoost).
         
         Args:
             X_train, y_train: Training data
             X_val, y_val: Validation data
             feature_names: List of feature names
+            model_type: 'hybrid' or 'xgboost'
             
         Returns:
             Trained model
         """
         logger.info("\n" + "="*60)
-        logger.info("TRAINING HYBRID MODEL")
+        logger.info(f"TRAINING {model_type.upper()} MODEL")
         logger.info("="*60 + "\n")
         
-        # Get model config
-        lstm_config = {
-            'input_size': X_train.shape[1],
-            **self.config['model']['lstm']
-        }
-        xgb_config = self.config['model']['xgboost']
-        
-        # Create model
-        model = HybridGasFeePredictor(
-            lstm_config=lstm_config,
-            xgb_config=xgb_config,
-            sequence_length=self.config['data']['sequence_length']
-        )
-        
-        # Train
-        training_config = self.config['training']
-        model.fit(
-            X_train, y_train,
-            X_val, y_val,
-            feature_names=feature_names,
-            device='cuda' if torch.cuda.is_available() else 'cpu',
-            batch_size=training_config['batch_size'],
-            lstm_epochs=training_config['epochs'],
-            lstm_lr=training_config['learning_rate']
-        )
+        if model_type == 'xgboost':
+            from models import XGBoostGasFeeModel
+            
+            model = XGBoostGasFeeModel(
+                name="xgboost_robust",
+                config=self.config['model']['xgboost']
+            )
+            
+            # Ensure we use the custom asymmetric objective
+            # It is handled in XGBoostGasFeeModel.fit by default now
+            model.fit(X_train, y_train, X_val, y_val)
+            
+            # Attach feature names for convenience
+            model.feature_names = feature_names
+            
+        else:
+            raise ValueError(f"Unknown or legacy model_type request: {model_type}. This pipeline is STRICTLY for Standalone XGBoost.")
         
         return model
     
     def evaluate_model(
         self,
-        model: HybridGasFeePredictor,
+        model: Any,
         X_test: np.ndarray,
         y_test: np.ndarray
     ) -> Dict[str, float]:
@@ -315,9 +317,10 @@ class TrainingPipeline:
     
     def save_artifacts(
         self,
-        model: HybridGasFeePredictor,
+        model: Any,
         metrics: Dict[str, float],
-        output_dir: str = 'models'
+        output_dir: str = 'models',
+        model_type: str = 'unknown'
     ):
         """
         Save model dan artifacts.
@@ -326,6 +329,7 @@ class TrainingPipeline:
             model: Trained model
             metrics: Evaluation metrics
             output_dir: Output directory
+            model_type: Type of model trained
         """
         output_dir = Path(output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -350,15 +354,34 @@ class TrainingPipeline:
             'timestamp': datetime.now().isoformat(),
             'config': self.config,
             'feature_columns': self.feature_columns,
-            'metrics': metrics
+            'metrics': metrics,
+            'model_type': model_type
         }
         
         info_path = output_dir / 'training_info.json'
         with open(info_path, 'w') as f:
             json.dump(info, f, indent=2)
         logger.info(f"✓ Training info saved: {info_path}")
-    
-    def run(self, data_path: str, output_dir: str = 'models', selected_features_path: str = None):
+
+        # Save metadata.json for universal loader (src/__init__.py / src/models.py)
+        # This is CRITICAL for non-hybrid models to be loaded correctly via load_model_from_dir
+        if not (output_dir / "hybrid_metadata.pkl").exists():
+            # Usually strict hybrid models save their own hybrid_metadata.pkl
+            # If it's missing (e.g. XGBoost/RF), we MUST provide metadata.json
+            metadata = {
+                "model_type": model_type,
+                "model_name": self.config.get("model", {}).get("name", f"{model_type}_model"),
+                "model_params": self.config.get("model", {}).get("params", {}),
+                "feature_names": self.feature_columns,
+                "prediction_offset": self.config.get("data", {}).get("prediction_offset", 1), # Default 1 block ahead
+                "target_scaler_path": str(output_dir / "scaler.pkl") # Reference
+            }
+            
+            with open(output_dir / "metadata.json", "w") as f:
+                json.dump(metadata, f, indent=2)
+            logger.info(f"✓ Model metadata saved: {output_dir / 'metadata.json'}")
+
+    def run(self, data_path: str, output_dir: str = 'models', selected_features_path: str = None, model_type: str = 'xgboost'):
         """
         Run complete training pipeline.
         
@@ -366,6 +389,7 @@ class TrainingPipeline:
             data_path: Path to features file
             output_dir: Output directory untuk models
             selected_features_path: Optional path to selected features file
+            model_type: 'xgboost' (default)
         """
         try:
             # Load data
@@ -385,22 +409,25 @@ class TrainingPipeline:
             # Split data
             X_train, X_val, X_test, y_train, y_val, y_test = self.split_data(X, y)
             
-            # Normalize features AND targets
+            # Normalize features (Skip target normalization for XGBoost)
+            # normalize_targets = (model_type == 'hybrid') -> Legacy
+            normalize_targets = False
             X_train, X_val, X_test, y_train_norm, y_val_norm, y_test_norm = self.normalize_features(
-                X_train, X_val, X_test, y_train, y_val, y_test
+                X_train, X_val, X_test, y_train, y_val, y_test, normalize_targets=normalize_targets
             )
             
-            # Train model with normalized targets
-            model = self.train_model(X_train, y_train_norm, X_val, y_val_norm, feature_names)
+            # Train model with processed targets
+            model = self.train_model(X_train, y_train_norm, X_val, y_val_norm, feature_names, model_type=model_type)
             
             # Store original (unnormalized) targets for evaluation
+            # For Hybrid, target_scaler is used. For XGBoost, it might be None.
             model.target_scaler = self.target_scaler
             
             # Evaluate
             metrics = self.evaluate_model(model, X_test, y_test)
             
             # Save
-            self.save_artifacts(model, metrics, output_dir)
+            self.save_artifacts(model, metrics, output_dir, model_type=model_type)
             
             logger.info("\n" + "="*60)
             logger.info("✓ TRAINING PIPELINE COMPLETED SUCCESSFULLY!")
@@ -414,7 +441,7 @@ class TrainingPipeline:
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='Train hybrid gas fee prediction model',
+        description='Train gas fee prediction model (XGBoost Only)',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
     
@@ -438,6 +465,14 @@ def main():
         type=str,
         default='models',
         help='Output directory untuk models (default: models/)'
+    )
+
+    parser.add_argument(
+        '--model-type',
+        type=str,
+        default='xgboost',
+        choices=['xgboost'],
+        help='Type of model to train (default: xgboost)'
     )
     
     parser.add_argument(
@@ -469,7 +504,7 @@ def main():
         
         # Run pipeline
         pipeline = TrainingPipeline(args.cfg)
-        pipeline.run(args.input_file, args.out_dir, args.selected_features)
+        pipeline.run(args.input_file, args.out_dir, args.selected_features, model_type=args.model_type)
         
         sys.exit(0)
         

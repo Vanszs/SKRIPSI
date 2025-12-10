@@ -1,0 +1,23 @@
+{
+  "model_type": "xgboost",
+  "model_name": "xgboost_model",
+  "model_params": {},
+  "feature_names": [
+    "baseFeePerGas",
+    "gasUsed",
+    "gasLimit",
+    "txCount",
+    "difficulty",
+    "totalDifficulty",
+    "utilization",
+    "hour_of_day",
+    "day_of_week",
+    "delta_baseFee",
+    "delta_gasUsed",
+    "baseFee_ema_5",
+    "baseFee_ema_10",
+    "utilization_ema_5"
+  ],
+  "prediction_offset": 1,
+  "target_scaler_path": "D:\\SKRIPSI\\gas-ml\\models\\xgboost_notebook\\scaler.pkl"
+}

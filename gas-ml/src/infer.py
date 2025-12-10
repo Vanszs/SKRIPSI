@@ -20,7 +20,7 @@ import time
 sys.path.insert(0, str(Path(__file__).parent))
 
 from rpc import EthereumRPCClient
-from stack import HybridGasFeePredictor
+from models import load_model_from_dir
 from policy import GasFeePolicy, create_default_policy
 from features import FeatureEngineer
 
@@ -54,9 +54,12 @@ class GasFeeInferenceEngine:
         self.model_dir = Path(model_dir)
         self.network = network
         
-        # Load model
+        # Load model (detects type automatically)
         logger.info(f"Loading model from {model_dir}...")
-        self.model = HybridGasFeePredictor.load(model_dir)
+        self.model, self.metadata = load_model_from_dir(self.model_dir)
+        
+        model_type = self.metadata.get('model_type', 'unknown')
+        logger.info(f"Loaded model type: {model_type}")
         
         # Load scaler
         with open(self.model_dir / 'scaler.pkl', 'rb') as f:
@@ -142,7 +145,11 @@ class GasFeeInferenceEngine:
             Dictionary dengan prediction dan recommendation
         """
         # Fetch recent blocks
-        seq_len = self.model.sequence_length
+        # Safely get sequence length (Hyrid has it, XGBoost might not - default to 1)
+        seq_len = getattr(self.model, 'sequence_length', 1)
+        if seq_len is None: # Just in case it's explicitly None
+             seq_len = self.metadata.get('sequence_length', 1)
+             
         n_blocks = seq_len + 50  # Extra for feature engineering
         
         blocks = self.fetch_recent_blocks(n_blocks)
