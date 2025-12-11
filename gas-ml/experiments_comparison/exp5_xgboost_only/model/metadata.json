@@ -1,9 +1,0 @@
-{
-  "experiment": "xgboost-only-gas-prediction",
-  "version": "exp5",
-  "timestamp": "2025-11-10T17:22:39.968128",
-  "n_features": 14,
-  "n_estimators": 700,
-  "max_depth": 6,
-  "learning_rate": 0.045
-}

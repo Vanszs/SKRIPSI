@@ -1,0 +1,20 @@
+{
+  "model_type": "ets",
+  "model_name": "ets",
+  "model_params": {
+    "seasonal_periods": 24,
+    "trend": "add",
+    "seasonal": "add"
+  },
+  "metrics": {
+    "mae": 123203073.7064648,
+    "mae_wei": 123203073.7064648,
+    "mae_gwei": 0.1232030737064648,
+    "rmse": 143724267.09095547,
+    "rmse_wei": 143724267.09095547,
+    "rmse_gwei": 0.14372426709095545,
+    "mape": 76.12911240511939,
+    "r2": -154.5304054406704
+  },
+  "created_at": "2025-12-11T10:29:49.848349"
+}

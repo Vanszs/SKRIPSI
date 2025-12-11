@@ -120,9 +120,9 @@ switch ($Command) {
     }
     
     'fetch' {
-        Write-Step "Fetching $NBlocks blocks from Sepolia..."
+        Write-Step "Fetching $NBlocks blocks from ..."
         
-        $args = @("-m", "src.fetch", "--network", "sepolia", "--n-blocks", $NBlocks)
+        $args = @("-m", "src.fetch", "--network", "", "--n-blocks", $NBlocks)
         
         if ($Verbose) {
             $args += "--verbose"

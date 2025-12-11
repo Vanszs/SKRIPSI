@@ -1,0 +1,20 @@
+{
+  "model_type": "random_forest",
+  "model_name": "random_forest",
+  "model_params": {
+    "n_estimators": 100,
+    "max_depth": 20,
+    "n_jobs": -1
+  },
+  "metrics": {
+    "mae": 8404547.06853978,
+    "mae_wei": 8404547.06853978,
+    "mae_gwei": 0.00840454706853978,
+    "rmse": 10175870.138464298,
+    "rmse_wei": 10175870.138464298,
+    "rmse_gwei": 0.010175870138464297,
+    "mape": 4.94634078187416,
+    "r2": 0.9773208892819935
+  },
+  "created_at": "2025-12-11T10:48:57.278549"
+}

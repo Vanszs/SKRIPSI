@@ -1,0 +1,16 @@
+{
+  "model_type": "linear_regression",
+  "model_name": "linear_regression",
+  "model_params": {},
+  "metrics": {
+    "mae": 0.27417649104333985,
+    "mae_wei": 0.27417649104333985,
+    "mae_gwei": 2.7417649104333987e-10,
+    "rmse": 0.33158045687840254,
+    "rmse_wei": 0.33158045687840254,
+    "rmse_gwei": 3.3158045687840254e-10,
+    "mape": 1.5846400875410918e-07,
+    "r2": 1.0
+  },
+  "created_at": "2025-12-11T10:48:53.537042"
+}

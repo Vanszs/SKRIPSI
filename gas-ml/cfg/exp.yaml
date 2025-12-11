@@ -1,12 +1,12 @@
 # Experiment Configuration for Gas Fee Prediction Model
 experiment:
-  name: "hybrid-lstm-xgboost-gas-prediction"
+  name: "XGBOOST ONLY"
   version: "v1.0"
   description: "LSTM + XGBoost hybrid model for Ethereum gas fee prediction post-EIP-1559"
   
 network:
-  name: "sepolia"
-  chain_id: 11155111
+  name: "ETHEREUM MAINNET"
+  chain_id: 1
   block_time: 12  # seconds
 
 data:
@@ -51,7 +51,7 @@ model:
     
   xgboost:
     n_estimators: 700  # Slightly more trees
-    max_depth: 6  # Keep shallow
+    max_depth: 6  # Tuning: Optimal depth found (0.62 vs 0.39 at depth 7)
     learning_rate: 0.045  # Fine-tuned LR
     subsample: 0.85  # Slightly more data per tree
     colsample_bytree: 0.85  # Slightly more features per tree
@@ -60,6 +60,7 @@ model:
     reg_alpha: 0.03  # Fine-tuned L1
     reg_lambda: 1.2  # Fine-tuned L2
     early_stopping_rounds: 70  # More patience
+    use_custom_objective: true  # Tuning: Custom objective proved superior (R2 0.62 vs 0.34)
     
 training:
   batch_size: 48  # Sweet spot between 32 and 64

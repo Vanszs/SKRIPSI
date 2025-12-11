@@ -1,5 +1,5 @@
 """
-RPC Client untuk koneksi ke Ethereum Sepolia Testnet.
+RPC Client untuk koneksi ke Ethereum Network.
 
 Modul ini menyediakan abstraksi untuk:
 - Koneksi ke node Ethereum via HTTP/WebSocket
@@ -35,7 +35,7 @@ class EthereumRPCClient:
     Client untuk berinteraksi dengan Ethereum node.
     
     Mendukung:
-    - Sepolia testnet
+    -  Mainnet / Custom Network
     - Retry mechanism untuk koneksi yang tidak stabil
     - Multiple fallback RPC endpoints
     - Rate limiting untuk Alchemy (25 req/s) dan Etherscan (5 req/s)
@@ -50,17 +50,18 @@ class EthereumRPCClient:
         'public': 5,        # Conservative untuk public endpoints
     }
     
-    # Default RPC endpoints untuk Sepolia
-    SEPOLIA_ENDPOINTS = [
-        os.getenv('SEPOLIA_RPC_URL', 'https://rpc.sepolia.org'),
-        'https://ethereum-sepolia.publicnode.com',
-        'https://rpc2.sepolia.org',
-        'https://sepolia.gateway.tenderly.co',
+    # Default RPC endpoints untuk 
+    # Default RPC endpoints (Mainnet)
+    _ENDPOINTS = [
+        os.getenv('MAINNET_RPC_URL', 'https://eth-mainnet.g.alchemy.com/v2/yyhCbLJY_uIHUhD7HQ4JG'),
+        'https://eth.llamarpc.com',
+        'https://ethereum.publicnode.com',
+        'https://rpc.ankr.com/eth',
     ]
     
     def __init__(
         self,
-        network: str = 'sepolia',
+        network: str = '',
         rpc_url: Optional[str] = None,
         max_retries: int = 3,
         retry_delay: float = 1.0,
@@ -71,7 +72,7 @@ class EthereumRPCClient:
         Inisialisasi RPC client.
         
         Args:
-            network: Network name ('sepolia', 'mainnet', dll)
+            network: Network name ('', 'mainnet', dll)
             rpc_url: Custom RPC URL (optional)
             max_retries: Maximum retry attempts untuk failed requests
             retry_delay: Delay antar retry (seconds)
@@ -154,8 +155,8 @@ class EthereumRPCClient:
     def _setup_endpoints(self, custom_url: Optional[str]) -> List[str]:
         """Setup list of RPC endpoints dengan fallback."""
         if custom_url:
-            return [custom_url] + self.SEPOLIA_ENDPOINTS
-        return self.SEPOLIA_ENDPOINTS.copy()
+            return [custom_url] + self._ENDPOINTS
+        return self._ENDPOINTS.copy()
     
     def _connect(self) -> Web3:
         """Establish connection ke Ethereum node dengan fallback."""
@@ -420,7 +421,7 @@ class EthereumRPCClient:
 def test_connection():
     """Test RPC connection dan print info."""
     try:
-        client = EthereumRPCClient(network='sepolia')
+        client = EthereumRPCClient(network='')
         
         print(f"\n{'='*60}")
         print(f"Connection Test Results")

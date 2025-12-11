@@ -1,5 +1,5 @@
 """
-Data Fetcher untuk mengambil block data dari Ethereum Sepolia.
+Data Fetcher untuk mengambil block data dari Ethereum .
 
 Script CLI untuk fetch historical blocks dan save ke CSV format.
 Support untuk:
@@ -44,7 +44,7 @@ class BlockDataFetcher:
     
     def __init__(
         self,
-        network: str = 'sepolia',
+        network: str = '',
         output_dir: str = 'data',
         rpc_url: str = None
     ):
@@ -276,7 +276,7 @@ class BlockDataFetcher:
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='Fetch Ethereum block data from Sepolia testnet',
+        description='Fetch Ethereum block data from network',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -294,9 +294,9 @@ Examples:
     parser.add_argument(
         '--network',
         type=str,
-        default='sepolia',
-        choices=['sepolia', 'mainnet', 'goerli'],
-        help='Ethereum network name (default: sepolia)'
+        default='',
+        choices=['', 'mainnet'],
+        help='Ethereum network name (default: mainnet)'
     )
     
     parser.add_argument(

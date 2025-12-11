@@ -64,10 +64,6 @@ outputs/logs/
 outputs/predictions/
 outputs/archived_models/
 
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
-
 # OS
 .DS_Store
 Thumbs.db

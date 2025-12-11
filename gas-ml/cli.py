@@ -31,7 +31,7 @@ load_dotenv()
 sys.path.insert(0, str(Path(__file__).parent / 'src'))
 
 from rpc import EthereumRPCClient
-from stack import HybridGasFeePredictor
+from models import load_model_from_dir
 from features import FeatureEngineer
 from policy import GasFeePolicy, create_default_policy
 import numpy as np
@@ -55,7 +55,7 @@ class RealtimePredictor:
         Args:
             rpc_url: Ethereum RPC endpoint URL
             model_dir: Directory containing trained model
-            network: Network name (mainnet, sepolia)
+            network: Network name (mainnet, )
         """
         self.network = network
         
@@ -65,7 +65,7 @@ class RealtimePredictor:
         
         # Load model
         logger.info(f"Loading model from {model_dir}...")
-        self.model = HybridGasFeePredictor.load(model_dir)
+        self.model, self.metadata = load_model_from_dir(Path(model_dir))
         
         # Load scaler
         with open(Path(model_dir) / 'scaler.pkl', 'rb') as f:
@@ -291,6 +291,13 @@ def info(model_dir):
         # Load training info
         with open(model_dir / 'training_info.json', 'r') as f:
             training_info = json.load(f)
+            
+        # Load metadata (Required for architecture info)
+        try:
+            with open(model_dir / 'metadata.json', 'r') as f:
+                metadata = json.load(f)
+        except FileNotFoundError:
+            metadata = {}
         
         # Display
         click.echo("\n" + "="*60)
@@ -302,19 +309,32 @@ def info(model_dir):
         click.echo(f"   MAPE:             {metrics['mape']:.2f}%")
         click.echo(f"   RMSE:             {metrics['rmse_gwei']:.4f} Gwei")
         click.echo(f"   R²:               {metrics['r2']:.4f}")
-        click.echo(f"   Hit@{metrics['epsilon']:.0f}%:          {metrics['hit_at_epsilon']:.2f}%")
+        if 'epsilon' in metrics and 'hit_at_epsilon' in metrics:
+            val = metrics['epsilon']
+            # Heuristic: if < 1 assume it's a ratio (0.05), else percentage (5)
+            display_val = val * 100 if val < 1.0 else val
+            click.echo(f"   Hit@{display_val:.0f}%:          {metrics['hit_at_epsilon']:.2f}%")
         click.echo(f"   Under-estimation: {metrics['under_estimation_rate']:.2f}%")
         
         click.echo("\n🏗️  Architecture:")
-        lstm_cfg = training_info['config']['model']['lstm']
-        xgb_cfg = training_info['config']['model']['xgboost']
-        click.echo(f"   Type:             Hybrid LSTM → XGBoost")
-        click.echo(f"   LSTM hidden:      {lstm_cfg['hidden_size']}")
-        click.echo(f"   LSTM layers:      {lstm_cfg['num_layers']}")
-        click.echo(f"   LSTM dropout:     {lstm_cfg['dropout']}")
-        click.echo(f"   XGBoost trees:    {xgb_cfg['n_estimators']}")
-        click.echo(f"   XGBoost depth:    {xgb_cfg['max_depth']}")
-        click.echo(f"   Sequence length:  {training_info['config']['data']['sequence_length']} blocks")
+        click.echo("\n🏗️  Architecture:")
+        
+        cfg = training_info.get('config', {}).get('model', {})
+        
+        click.echo(f"   Model Type:       {metadata.get('model_type', 'Unknown').upper()}")
+        
+        if 'xgboost' in cfg:
+             xgb_cfg = cfg['xgboost']
+             click.echo(f"   XGBoost trees:    {xgb_cfg.get('n_estimators', 'N/A')}")
+             click.echo(f"   XGBoost depth:    {xgb_cfg.get('max_depth', 'N/A')}")
+             
+        if 'lstm' in cfg and metadata.get('model_type') == 'lstm':
+             lstm_cfg = cfg['lstm']
+             click.echo(f"   LSTM hidden:      {lstm_cfg.get('hidden_size', 'N/A')}")
+             click.echo(f"   LSTM layers:      {lstm_cfg.get('num_layers', 'N/A')}")
+
+        seq_len = metadata.get('sequence_length', 1)
+        click.echo(f"   Sequence length:  {seq_len} blocks")
         
         click.echo("\n📦 Training Data:")
         click.echo(f"   Features:         {len(training_info['feature_columns'])}")
@@ -344,7 +364,7 @@ def backtest(data, model_dir, output):
         click.echo(f"\n📊 Running backtest on {data}...")
         
         # Load model
-        model = HybridGasFeePredictor.load(model_dir)
+        model, metadata = load_model_from_dir(Path(model_dir))
         
         # Load scaler
         with open(Path(model_dir) / 'scaler.pkl', 'rb') as f:

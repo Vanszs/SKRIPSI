@@ -254,9 +254,16 @@ class FeatureEngineer:
         
         # Volatility regime: low/medium/high
         vol_quantiles = df['baseFee_rolling_std_6'].quantile([0.33, 0.67])
+        q33 = vol_quantiles[0.33]
+        q67 = vol_quantiles[0.67]
+
+        # Robustness: Ensure bins are unique for low-variance data (common in stable networks)
+        if q33 >= q67:
+            q67 = q33 + 1e-9
+
         df['volatility_regime'] = pd.cut(
             df['baseFee_rolling_std_6'],
-            bins=[-np.inf, vol_quantiles[0.33], vol_quantiles[0.67], np.inf],
+            bins=[-np.inf, q33, q67, np.inf],
             labels=[0, 1, 2]  # 0=low, 1=med, 2=high
         ).astype(int)
         

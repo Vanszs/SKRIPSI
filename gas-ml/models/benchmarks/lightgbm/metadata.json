@@ -1,0 +1,20 @@
+{
+  "model_type": "lightgbm",
+  "model_name": "lightgbm",
+  "model_params": {
+    "n_estimators": 200,
+    "learning_rate": 0.1,
+    "n_jobs": -1
+  },
+  "metrics": {
+    "mae": 8027647.264681793,
+    "mae_wei": 8027647.264681793,
+    "mae_gwei": 0.008027647264681793,
+    "rmse": 9406835.746890828,
+    "rmse_wei": 9406835.746890828,
+    "rmse_gwei": 0.009406835746890828,
+    "mape": 4.740505691291303,
+    "r2": 0.9806192744778693
+  },
+  "created_at": "2025-12-11T10:48:57.923279"
+}

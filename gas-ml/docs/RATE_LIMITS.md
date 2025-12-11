@@ -42,7 +42,7 @@ Rate limit auto-detected dari RPC URL:
 
 ```bash
 # .env
-SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+_RPC_URL=https://eth-.g.alchemy.com/v2/YOUR_KEY
 # → Auto-detects: 25 req/s
 ```
 
@@ -54,7 +54,7 @@ from src.rpc import EthereumRPCClient
 
 # Override dengan custom rate limit
 client = EthereumRPCClient(
-    network='sepolia',
+    network='',
     rate_limit=30  # Custom: 30 req/s
 )
 ```
@@ -76,10 +76,10 @@ Time = (Total Blocks / Rate Limit) / 60 minutes
 
 ### **Real Example dengan Alchemy:**
 ```bash
-$ python -m src.fetch --network sepolia --n-blocks 8000
+$ python -m src.fetch --network  --n-blocks 8000
 
 # Output:
-Connected to sepolia (Provider: alchemy, Rate Limit: 25 req/s)
+Connected to  (Provider: alchemy, Rate Limit: 25 req/s)
 Fetching 8000 blocks from 6434567 to 6442567
 Progress: 100/8000 blocks (1.2%) - Rate: 24.8 blocks/s - ETA: 5.3 min
 Progress: 200/8000 blocks (2.5%) - Rate: 24.9 blocks/s - ETA: 5.2 min
@@ -121,7 +121,7 @@ Rate: 5.2 blocks/s (expected: 25 blocks/s)
 1. Verify RPC URL di `.env`:
    ```bash
    # Pastikan URL mengandung 'alchemy'
-   SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_KEY
+   _RPC_URL=https://eth-.g.alchemy.com/v2/YOUR_KEY
    ```
 
 2. Test connection speed:

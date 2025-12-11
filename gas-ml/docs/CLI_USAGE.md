@@ -155,8 +155,8 @@ python cli.py predict --rpc https://mainnet.infura.io/v3/YOUR_PROJECT_ID
 # Local node
 python cli.py predict --rpc http://localhost:8545
 
-# Sepolia testnet
-python cli.py predict --rpc https://rpc.sepolia.org --network sepolia
+#  Custom Network
+python cli.py predict --rpc https://rpc.custom.org --network custom
 ```
 
 ### Continuous Monitoring with Logging

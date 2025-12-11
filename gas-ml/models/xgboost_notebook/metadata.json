@@ -1,23 +1,20 @@
 {
-  "model_type": "xgboost",
-  "model_name": "xgboost_model",
-  "model_params": {},
-  "feature_names": [
-    "baseFeePerGas",
-    "gasUsed",
-    "gasLimit",
-    "txCount",
-    "difficulty",
-    "totalDifficulty",
-    "utilization",
-    "hour_of_day",
-    "day_of_week",
-    "delta_baseFee",
-    "delta_gasUsed",
-    "baseFee_ema_5",
-    "baseFee_ema_10",
-    "utilization_ema_5"
-  ],
-  "prediction_offset": 1,
-  "target_scaler_path": "D:\\SKRIPSI\\gas-ml\\models\\xgboost_notebook\\scaler.pkl"
+    "model_type": "xgboost",
+    "model_name": "xgboost_robust",
+    "model_params": {
+        "max_depth": 6,
+        "learning_rate": 0.045,
+        "subsample": 0.85,
+        "colsample_bytree": 0.85,
+        "min_child_weight": 2,
+        "gamma": 0.05,
+        "reg_alpha": 0.03,
+        "reg_lambda": 1.2,
+        "eval_metric": "rmse",
+        "base_score": 263648572.05310142
+    },
+    "input_size": 62,
+    "prediction_offset": 0,
+    "sequence_length": 1,
+    "created_at": "2025-12-11T00:05:40.948830"
 }

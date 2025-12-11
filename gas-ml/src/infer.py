@@ -40,7 +40,7 @@ class GasFeeInferenceEngine:
     def __init__(
         self,
         model_dir: str,
-        network: str = 'sepolia',
+        network: str = '',
         rpc_url: str = None
     ):
         """
@@ -232,7 +232,7 @@ Examples:
   python -m src.infer --model models/ --continuous
   
   # Custom network
-  python -m src.infer --model models/ --network sepolia --rpc-url https://your-rpc.com
+  python -m src.infer --model models/ --network mainnet --rpc-url https://your-rpc.com
         """
     )
     
@@ -246,8 +246,8 @@ Examples:
     parser.add_argument(
         '--network',
         type=str,
-        default='sepolia',
-        help='Ethereum network (default: sepolia)'
+        default='',
+        help='Ethereum network (default: )'
     )
     
     parser.add_argument(

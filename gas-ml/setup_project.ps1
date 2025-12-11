@@ -75,7 +75,7 @@ try {
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Yellow
     Write-Host "  1. Edit .env file dengan RPC URL yang valid" -ForegroundColor White
-    Write-Host "     - Free RPC: https://rpc.sepolia.org" -ForegroundColor Gray
+    Write-Host "     - Free RPC: https://rpc..org" -ForegroundColor Gray
     Write-Host "     - Or get Infura key: https://infura.io" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  2. Test connection:" -ForegroundColor White

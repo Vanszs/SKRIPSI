@@ -7,7 +7,7 @@
       "description": "LSTM + XGBoost hybrid model for Ethereum gas fee prediction post-EIP-1559"
     },
     "network": {
-      "name": "sepolia",
+      "name": "",
       "chain_id": 11155111,
       "block_time": 12
     },

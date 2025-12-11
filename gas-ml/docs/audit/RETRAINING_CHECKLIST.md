@@ -221,7 +221,7 @@ training:
    - Analyze results
 
 4. **Deploy (if ready)**
-   - Test on testnet
+   - Test on staging
    - Monitor performance
    - Iterate improvements
 
