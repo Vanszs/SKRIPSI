@@ -4,7 +4,7 @@ applyTo: '**'
 
 > Kamu adalah AI engineer assistant yang bertugas membangun project riset berjudul **"Model Prediksi Gas Fee Ethereum Berbasis Hybrid LSTM–XGBoost untuk Optimasi Biaya Transaksi Pasca-EIP-1559"**.
 >
-> Tujuan proyek ini adalah membuat **pipeline headless (tanpa GUI)** yang berjalan di **testnet Sepolia**, untuk mengambil data blok Ethereum, membangun fitur, melatih model machine learning (LSTM + XGBoost hybrid), melakukan prediksi gas fee berikutnya, serta mengevaluasi performanya berdasarkan efisiensi biaya dan tingkat keberhasilan transaksi.
+> Tujuan proyek ini adalah membuat **pipeline headless (tanpa GUI)** yang berjalan di **testnet **, untuk mengambil data blok Ethereum, membangun fitur, melatih model machine learning XGBoost, melakukan prediksi gas fee berikutnya, serta mengevaluasi performanya berdasarkan efisiensi biaya dan tingkat keberhasilan transaksi.
 >
 > Fokus proyek:
 >
@@ -18,7 +18,7 @@ applyTo: '**'
 
 ## 🎯 **Tugas Utama**
 
-1. **Ambil data blok dari testnet Sepolia (RPC / Etherscan API)**
+1. **Ambil data blok dari testnet  (RPC / Etherscan API)**
    Kolom wajib: `number`, `timestamp`, `baseFeePerGas`, `gasUsed`, `gasLimit`, `txCount`.
 2. **Bangun fitur**: `ΔbaseFee`, `utilization = gasUsed/gasLimit`, `EMA_baseFee`, `EMA_utilization`, `hour_of_day`, `day_of_week`.
 3. **Buat label**: `baseFee_next` (blok berikutnya).
@@ -106,7 +106,7 @@ python cli.py backtest --data data/blocks_5k.csv
 ### **Python Module Commands**:
 ```bash
 # Data pipeline
-python -m src.fetch --network sepolia --n-blocks 8000
+python -m src.fetch --network  --n-blocks 8000
 python -m src.features --in data/blocks.csv --out data/features.parquet
 
 # Feature selection (Unified module with subcommands)
@@ -225,7 +225,7 @@ Get-ChildItem -Path . -Recurse -Filter "__pycache__" | Remove-Item -Recurse -For
 ## 🧾 **Catatan Tambahan**
 
 * Jalankan semua script dalam environment Python tanpa GUI.
-* Gunakan testnet **Sepolia** agar bebas biaya gas.
+* Gunakan testnet **** agar bebas biaya gas.
 * Dokumentasikan setiap fungsi dengan docstring jelas (biar mudah dijelaskan di sidang).
 * Gunakan logging sederhana untuk setiap tahap pipeline.
 * Hindari library eksperimental; prioritaskan stabilitas.

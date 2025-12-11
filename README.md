@@ -99,7 +99,7 @@ python cli.py backtest --data data/blocks_5k.csv
 ### Python Modules
 ```bash
 # Data pipeline
-python -m src.fetch --network sepolia --n-blocks 8000
+python -m src.fetch --network  --n-blocks 8000
 python -m src.features --in data/blocks.csv --out data/features.parquet
 
 # Feature selection
@@ -180,7 +180,7 @@ pytest tests/ --cov=src --cov-report=html --cov-report=term
 ### RPC Connection Issues
 ```bash
 # Try alternative RPC
-python cli.py predict --rpc https://ethereum-sepolia.publicnode.com
+python cli.py predict --rpc https://ethereum-.publicnode.com
 ```
 
 ### GPU Support
@@ -218,7 +218,7 @@ training:
 This project implements a hybrid deep learning approach for Ethereum gas fee prediction:
 
 **Methodology**:
-- Data collection from Sepolia testnet
+- Data collection from  testnet
 - Feature engineering (temporal, statistical, domain-specific)
 - Hybrid LSTM-XGBoost architecture
 - Comprehensive evaluation metrics
@@ -255,7 +255,7 @@ MIT License - Academic Research Project
 
 ## ⚠️ Disclaimer
 
-**For academic research and proof-of-concept only. Use on testnet (Sepolia). Not for production.**
+**For academic research and proof-of-concept only. Use on testnet (). Not for production.**
 
 ---
 

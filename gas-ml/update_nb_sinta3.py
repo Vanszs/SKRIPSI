@@ -53,16 +53,37 @@ Overview of key features: `baseFee`, `gasUsed`, `transactionCount`, and the targ
 """))
 
 nb.cells.append(new_code_cell("""if not df.empty:
+    # Select columns
     cols_to_desc = ['baseFeePerGas', 'gasUsed', 'transactionCount', 'baseFee_next']
-    # Filter only existing cols
     cols_to_desc = [c for c in cols_to_desc if c in df.columns]
     
-    desc_stats = df[cols_to_desc].describe().T
+    # Create a display dataframe with readable units
+    df_disp = df[cols_to_desc].copy()
+    
+    # Convert to Gwei (1e9)
+    if 'baseFeePerGas' in df_disp.columns:
+        df_disp['baseFeePerGas (Gwei)'] = df_disp['baseFeePerGas'] / 1e9
+        df_disp.drop(columns=['baseFeePerGas'], inplace=True)
+        
+    if 'baseFee_next' in df_disp.columns:
+        df_disp['baseFee_next (Gwei)'] = df_disp['baseFee_next'] / 1e9
+        df_disp.drop(columns=['baseFee_next'], inplace=True)
+        
+    # Convert to Millions (1e6)
+    if 'gasUsed' in df_disp.columns:
+        df_disp['gasUsed (M)'] = df_disp['gasUsed'] / 1e6
+        df_disp.drop(columns=['gasUsed'], inplace=True)
+
+    desc_stats = df_disp.describe().T
+    
+    # Format for display
     desc_stats['mean'] = desc_stats['mean'].apply(lambda x: f"{x:,.2f}")
     desc_stats['50%'] = desc_stats['50%'].apply(lambda x: f"{x:,.2f}")
     desc_stats['std'] = desc_stats['std'].apply(lambda x: f"{x:,.2f}")
+    desc_stats['min'] = desc_stats['min'].apply(lambda x: f"{x:,.2f}")
+    desc_stats['max'] = desc_stats['max'].apply(lambda x: f"{x:,.2f}")
     
-    print("Table 1: Descriptive Statistics")
+    print("Table 1: Descriptive Statistics (Units: Gwei for Fees, Millions for Gas)")
     display(desc_stats[['mean', '50%', 'min', 'max', 'std']])
 """))
 
